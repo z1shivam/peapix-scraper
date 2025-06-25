@@ -143,28 +143,56 @@ def prompt_bool(prompt, default=True):
         return default
     return val in {"y", "yes"}
 
-
 def prompt_range(name):
-    start = int(input(f"Start page for {name}: ").strip())
-    end = int(input(f"End page for {name}: ").strip())
-    return start, end
+    while True:
+        try:
+            start = input(f"Start page for {name}: ").strip()
+            start = int(start) if start else 1  # Default to 1 if empty
+            if start < 1:
+                raise ValueError("Start page must be 1 or greater")
+                
+            end = input(f"End page for {name}: ").strip()
+            end = int(end) if end else start  # Default to start if empty
+            if end < start:
+                raise ValueError("End page must be greater than or equal to start page")
+                
+            return start, end
+        except ValueError as e:
+            if "must be" in str(e):
+                print(f"Error: {e}")
+            else:
+                print("Error: Please enter valid integer numbers")
+            print("Please try again.")
+
 
 
 def main():
-    if prompt_bool("Do you want to scrape Bing?", True):
-        start, end = prompt_range("Bing")
-        scrape_page("bing", start, end)
+    scrape_bing = prompt_bool("Do you want to scrape Bing?", True)
+    bing_start, bing_end = None, None
+    if scrape_bing:
+        bing_start, bing_end = prompt_range("Bing")
 
-    if prompt_bool("Do you want to scrape Spotlight?", True):
-        start, end = prompt_range("Spotlight")
-        scrape_page("spotlight", start, end)
+    scrape_spot = prompt_bool("Do you want to scrape Spotlight?", True)
+    spot_start, spot_end = None, None
+    if scrape_spot:
+        spot_start, spot_end = prompt_range("Spotlight")
 
+    download_bing = False
+    download_spot = False
     if prompt_bool("Do you want to download images?", True):
-        if prompt_bool("Download Bing images?", True):
-            download_images("bing")
-        if prompt_bool("Download Spotlight images?", True):
-            download_images("spotlight")
+        if scrape_bing:
+            download_bing = prompt_bool("Download Bing images?", True)
+        if scrape_spot:
+            download_spot = prompt_bool("Download Spotlight images?", True)
 
+    if scrape_bing and bing_start is not None and bing_end is not None:
+        scrape_page("bing", bing_start, bing_end)
+    if scrape_spot and spot_start is not None and spot_end is not None:
+        scrape_page("spotlight", spot_start, spot_end)
+    if download_bing:
+        download_images("bing")
+    if download_spot:
+        download_images("spotlight")
 
 if __name__ == "__main__":
     main()
