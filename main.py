@@ -39,7 +39,9 @@ def scrape_bing_item(link):
 
     title = soup.select_one("h1.fs-4.fw-bold").text.strip()
     copyright_ = soup.select_one("p.text-body-secondary.fs-sm").text.strip()
-    description = " ".join(p.text.strip() for p in soup.select("div.position-relative p")).strip()
+    description = " ".join(
+        p.text.strip() for p in soup.select("div.position-relative p")
+    ).strip()
     date = soup.select_one("time")["datetime"]
     tags = [tag.text.strip() for tag in soup.select("div.tag-list a.tag-list__item")]
     img = soup.select_one("div.position-relative.shadow-md.mb-4 img.img-fluid")
@@ -102,13 +104,21 @@ def scrape_page(site, start_page, end_page):
 
         for item in items:
             link = item.select_one("a.d-block")["href"]
-            item_id = link.split("/")[-1] if site == "bing" else "+".join(link.split("/")[-2:])
+            item_id = (
+                link.split("/")[-1]
+                if site == "bing"
+                else "+".join(link.split("/")[-2:])
+            )
             if item_id in existing:
                 print(f"Skipping {item_id} (already exists)")
                 continue
 
             print(f"Scraping {item_id}")
-            data = scrape_bing_item(link) if site == "bing" else scrape_spotlight_item(link)
+            data = (
+                scrape_bing_item(link)
+                if site == "bing"
+                else scrape_spotlight_item(link)
+            )
             all_data.append(data)
 
     if all_data:
@@ -143,6 +153,7 @@ def prompt_bool(prompt, default=True):
         return default
     return val in {"y", "yes"}
 
+
 def prompt_range(name):
     while True:
         try:
@@ -150,12 +161,12 @@ def prompt_range(name):
             start = int(start) if start else 1  # Default to 1 if empty
             if start < 1:
                 raise ValueError("Start page must be 1 or greater")
-                
+
             end = input(f"End page for {name}: ").strip()
             end = int(end) if end else start  # Default to start if empty
             if end < start:
                 raise ValueError("End page must be greater than or equal to start page")
-                
+
             return start, end
         except ValueError as e:
             if "must be" in str(e):
@@ -163,7 +174,6 @@ def prompt_range(name):
             else:
                 print("Error: Please enter valid integer numbers")
             print("Please try again.")
-
 
 
 def main():
@@ -193,6 +203,7 @@ def main():
         download_images("bing")
     if download_spot:
         download_images("spotlight")
+
 
 if __name__ == "__main__":
     main()
