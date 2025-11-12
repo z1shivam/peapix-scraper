@@ -37,15 +37,29 @@ def scrape_bing_item(link):
     page_link = urljoin(BASE_URL, link)
     soup = BeautifulSoup(requests.get(page_link, headers=HEADERS).text, "html.parser")
 
-    title = soup.select_one("h1.fs-4.fw-bold").text.strip()
-    copyright_ = soup.select_one("p.text-body-secondary.fs-sm").text.strip()
+    title_elem = soup.select_one("h1.fs-4.fw-bold")
+    if not title_elem:
+        raise ValueError(f"Title not found for {page_link}")
+    title = title_elem.text.strip()
+
+    copyright_elem = soup.select_one("p.text-body-secondary.fs-sm")
+    copyright_ = copyright_elem.text.strip() if copyright_elem else ""
+
     description = " ".join(
         p.text.strip() for p in soup.select("div.position-relative p")
     ).strip()
-    date = soup.select_one("time")["datetime"]
+
+    date_elem = soup.select_one("time")
+    if not date_elem or "datetime" not in date_elem.attrs:
+        raise ValueError(f"Date not found for {page_link}")
+    date = str(date_elem["datetime"])
+
     tags = [tag.text.strip() for tag in soup.select("div.tag-list a.tag-list__item")]
+
     img = soup.select_one("div.position-relative.shadow-md.mb-4 img.img-fluid")
-    thumb = img["src"]
+    if not img or "src" not in img.attrs:
+        raise ValueError(f"Image not found for {page_link}")
+    thumb = str(img["src"])
     full_img = re.sub(r"_480\.jpg$", ".jpg", thumb)
 
     return {
@@ -66,14 +80,28 @@ def scrape_spotlight_item(link):
     page_link = urljoin(BASE_URL, link)
     soup = BeautifulSoup(requests.get(page_link, headers=HEADERS).text, "html.parser")
 
-    title = soup.select_one("h1.fs-4.fw-bold").text.strip()
-    copyright_ = soup.select_one("p.text-body-secondary.fs-sm").text.strip()
+    title_elem = soup.select_one("h1.fs-4.fw-bold")
+    if not title_elem:
+        raise ValueError(f"Title not found for {page_link}")
+    title = title_elem.text.strip()
+
+    copyright_elem = soup.select_one("p.text-body-secondary.fs-sm")
+    copyright_ = copyright_elem.text.strip() if copyright_elem else ""
+
     desc_blocks = soup.select("div.position-relative.mb-4")
     description = desc_blocks[1].text.strip() if len(desc_blocks) > 1 else ""
-    date = soup.select_one("time")["datetime"]
+
+    date_elem = soup.select_one("time")
+    if not date_elem or "datetime" not in date_elem.attrs:
+        raise ValueError(f"Date not found for {page_link}")
+    date = str(date_elem["datetime"])
+
     tags = [tag.text.strip() for tag in soup.select("div.tag-list a.tag-list__item")]
+
     img = soup.select_one("div.position-relative.shadow-md.mb-4 img.img-fluid")
-    thumb = img["src"]
+    if not img or "src" not in img.attrs:
+        raise ValueError(f"Image not found for {page_link}")
+    thumb = str(img["src"])
     full_img = re.sub(r"_480\.jpg$", ".jpg", thumb)
 
     return {
@@ -103,7 +131,12 @@ def scrape_page(site, start_page, end_page):
         items = soup.select("div.row.gx-5.gy-9 > div.col-md-6.col-lg-4")
 
         for item in items:
-            link = item.select_one("a.d-block")["href"]
+            link_elem = item.select_one("a.d-block")
+            if not link_elem or "href" not in link_elem.attrs:
+                print(f"Warning: Link not found in item, skipping")
+                continue
+            link = str(link_elem["href"])
+
             item_id = (
                 link.split("/")[-1]
                 if site == "bing"
@@ -113,13 +146,16 @@ def scrape_page(site, start_page, end_page):
                 print(f"Skipping {item_id} (already exists)")
                 continue
 
-            print(f"Scraping {item_id}")
-            data = (
-                scrape_bing_item(link)
-                if site == "bing"
-                else scrape_spotlight_item(link)
-            )
-            all_data.append(data)
+            try:
+                print(f"Scraping {item_id}")
+                data = (
+                    scrape_bing_item(link)
+                    if site == "bing"
+                    else scrape_spotlight_item(link)
+                )
+                all_data.append(data)
+            except Exception as e:
+                print(f"Error scraping {item_id}: {e}")
 
     if all_data:
         save_json(meta_file, all_data)
@@ -177,32 +213,10 @@ def prompt_range(name):
 
 
 def main():
-    scrape_bing = prompt_bool("Do you want to scrape Bing?", True)
-    bing_start, bing_end = None, None
-    if scrape_bing:
-        bing_start, bing_end = prompt_range("Bing")
-
-    scrape_spot = prompt_bool("Do you want to scrape Spotlight?", True)
-    spot_start, spot_end = None, None
-    if scrape_spot:
-        spot_start, spot_end = prompt_range("Spotlight")
-
-    download_bing = False
-    download_spot = False
-    if prompt_bool("Do you want to download images?", True):
-        if scrape_bing:
-            download_bing = prompt_bool("Download Bing images?", True)
-        if scrape_spot:
-            download_spot = prompt_bool("Download Spotlight images?", True)
-
-    if scrape_bing and bing_start is not None and bing_end is not None:
-        scrape_page("bing", bing_start, bing_end)
-    if scrape_spot and spot_start is not None and spot_end is not None:
-        scrape_page("spotlight", spot_start, spot_end)
-    if download_bing:
-        download_images("bing")
-    if download_spot:
-        download_images("spotlight")
+    scrape_page("bing", 1, 3)
+    scrape_page("spotlight", 1, 3)
+    download_images("bing")
+    download_images("spotlight")
 
 
 if __name__ == "__main__":
